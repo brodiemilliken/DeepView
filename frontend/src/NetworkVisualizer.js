@@ -40,21 +40,14 @@ export const drawNetwork = (weights) => {
     }
   }
 
+  // Draw the lines first
   weights.forEach((layer, layerIndex) => {
-    console.log(`Drawing layer ${layerIndex} with ${layer.length} neurons`); // Log layer info
-
     const layerHeight = layer.length * neuronSpacing;
     const layerOffsetY = (svgHeight - layerHeight) / 2;
 
     layer.forEach((neuronWeights, neuronIndex) => {
       const x = (layerIndex + 1) * layerSpacing + gridOffsetX + gridSize * gridSpacing;
       const y = neuronIndex * neuronSpacing + layerOffsetY;
-
-      svg.append('circle')
-        .attr('cx', x)
-        .attr('cy', y)
-        .attr('r', 5) // Smaller neurons
-        .attr('fill', 'black');
 
       if (layerIndex === 0) {
         // Connect input layer to the first hidden layer
@@ -93,6 +86,25 @@ export const drawNetwork = (weights) => {
             .attr('stroke-width', width);
         });
       }
+    });
+  });
+
+  // Draw the circles (neurons) on top of the lines
+  weights.forEach((layer, layerIndex) => {
+    const layerHeight = layer.length * neuronSpacing;
+    const layerOffsetY = (svgHeight - layerHeight) / 2;
+
+    layer.forEach((neuronWeights, neuronIndex) => {
+      const x = (layerIndex + 1) * layerSpacing + gridOffsetX + gridSize * gridSpacing;
+      const y = neuronIndex * neuronSpacing + layerOffsetY;
+
+      svg.append('circle')
+        .attr('cx', x)
+        .attr('cy', y)
+        .attr('r', 8) // Smaller neurons
+        .attr('fill', 'black')
+        .attr('data-layer', layerIndex)
+        .attr('data-neuron', neuronIndex);
     });
   });
 };

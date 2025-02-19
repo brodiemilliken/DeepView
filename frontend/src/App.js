@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import io from 'socket.io-client';
 import { drawNetwork } from './NetworkVisualizer';
+import { enableNeuronHover } from './NetworkHover';
 
 function App() {
   const [config, setConfig] = useState('');
@@ -41,6 +42,7 @@ function App() {
     if (weights.length > 0) {
       console.log('Drawing network with fetched weights...'); // Log before drawing the network
       drawNetwork(weights);
+      enableNeuronHover(); // Enable neuron hover functionality
     }
   }, [weights]);
 
@@ -121,6 +123,7 @@ function App() {
         </div>
       )}
       <svg id="network"></svg>
+      <div id="fixed-neuron-info" style={{ display: 'none', position: 'fixed', top: '10px', right: '10px', backgroundColor: 'white', padding: '10px', border: '1px solid black', fontWeight: 'bold' }}></div>
     </div>
   );
 }
