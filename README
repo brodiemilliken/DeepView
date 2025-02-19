@@ -1,0 +1,2 @@
+This is a personal project with the intention of showing on what happens behind the layers in a neural network while it is in training.
+This will allow users to fully customize the hyperparameters in thei network, and then to train it and see how each neuron is affected by training.

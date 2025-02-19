@@ -1,32 +1,48 @@
-// frontend/src/App.js
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import io from 'socket.io-client';
+import { drawNetwork } from './NetworkVisualizer';
 
 function App() {
   const [config, setConfig] = useState('');
   const [response, setResponse] = useState('');
   const [error, setError] = useState(null);
+  const [epoch, setEpoch] = useState(0);
+  const [batch, setBatch] = useState(0);
   const [isTraining, setIsTraining] = useState(false);
+  const [weights, setWeights] = useState([]);
 
   useEffect(() => {
-    // Connect to the backend Socket.IO server
     const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
     const socket = io(backendUrl);
 
-    // Listen for live training updates
     socket.on('training_update', (data) => {
       if (data.error !== undefined) {
         setError(data.error);
+      }
+      if (data.epoch !== undefined) {
+        setEpoch(data.epoch);
+      }
+      if (data.batch !== undefined) {
+        setBatch(data.batch);
+      }
+      if (data.weights !== undefined) {
+        setWeights(data.weights);
       }
       if (data.message) {
         setResponse(data.message);
       }
     });
 
-    // Clean up the connection when the component unmounts
     return () => socket.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (weights.length > 0) {
+      console.log('Drawing network with fetched weights...'); // Log before drawing the network
+      drawNetwork(weights);
+    }
+  }, [weights]);
 
   const startTraining = async (e) => {
     e.preventDefault();
@@ -54,7 +70,6 @@ function App() {
     }
   };
 
-  // Single button that toggles based on training status
   const handleButtonClick = (e) => {
     if (isTraining) {
       stopTraining();
@@ -69,13 +84,13 @@ function App() {
       <form onSubmit={handleButtonClick}>
         <div>
           <label>
-            Layer configuration (comma-separated, e.g., "128,64,10"):
+            Hidden layer configuration (comma-separated, e.g., "128,64"):
             <input
               type="text"
               value={config}
               onChange={(e) => setConfig(e.target.value)}
               style={{ marginLeft: '10px' }}
-              disabled={isTraining} // Disable input during training
+              disabled={isTraining}
             />
           </label>
         </div>
@@ -97,6 +112,15 @@ function App() {
           <p>{error}</p>
         </div>
       )}
+      {isTraining && (
+        <div style={{ marginTop: '20px' }}>
+          <h3>Current Batch:</h3>
+          <p>{batch}</p>
+          <h3>Current Epoch:</h3>
+          <p>{epoch}</p>
+        </div>
+      )}
+      <svg id="network"></svg>
     </div>
   );
 }
