@@ -5,7 +5,7 @@ import { drawNetwork } from './NetworkVisualizer';
 import { enableNeuronHover } from './NetworkHover';
 
 function App() {
-  const [config, setConfig] = useState('');
+  const [config, setConfig] = useState('16,16'); // Default hidden layer configuration
   const [response, setResponse] = useState('');
   const [error, setError] = useState(null);
   const [epoch, setEpoch] = useState(0);
@@ -15,6 +15,7 @@ function App() {
   const [layerGrids, setLayerGrids] = useState([]);
   const [drawWeights, setDrawWeights] = useState(true); // New state for drawing weights
   const [isPaused, setIsPaused] = useState(false); // New state for pausing
+  const [avgError, setAvgError] = useState(null); // New state for average error
 
   useEffect(() => {
     const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
@@ -33,8 +34,16 @@ function App() {
       if (data.weights !== undefined) {
         setWeights(data.weights);
       }
+      if (data.avg_error !== undefined) {
+        setAvgError(data.avg_error);
+      }
       if (data.message) {
         setResponse(data.message);
+        if (data.message === 'Training paused.') {
+          setIsPaused(true);
+        } else if (data.message === 'Training resumed.') {
+          setIsPaused(false);
+        }
       }
     });
 
@@ -65,6 +74,7 @@ function App() {
       setEpoch(0);
       setBatch(0);
       setError(null);
+      setAvgError(null); // Clear previous average error
     } catch (err) {
       console.error(err);
       setResponse('Error communicating with backend.');
@@ -170,6 +180,12 @@ function App() {
         <div style={{ marginTop: '20px' }}>
           <h3>Live Training Error:</h3>
           <p>{error}</p>
+        </div>
+      )}
+      {avgError !== null && (
+        <div style={{ marginTop: '20px' }}>
+          <h3>Average Training Error:</h3>
+          <p>{avgError}</p>
         </div>
       )}
       {isTraining && (

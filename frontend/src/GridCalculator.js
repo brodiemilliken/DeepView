@@ -13,6 +13,15 @@ export const calculateInitialGrids = (weights) => {
         grid.push(weight);
       }
     }
+
+    // Normalize the grid
+    const maxGridValue = Math.max(...grid.map(Math.abs));
+    if (maxGridValue > 0) {
+      for (let i = 0; i < grid.length; i++) {
+        grid[i] /= maxGridValue;
+      }
+    }
+
     initialGrids.push(grid);
   });
 
@@ -27,6 +36,7 @@ export const calculateLayerGrids = (weights, initialGrids) => {
   for (let layerIndex = 1; layerIndex < weights.length; layerIndex++) {
     const prevLayerGrids = layerGrids[layerIndex - 1];
     const currentLayerGrids = [];
+    const numNeuronsInLayer = weights[layerIndex].length;
 
     weights[layerIndex].forEach((neuronWeights, neuronIndex) => {
       const grid = new Array(gridSize * gridSize).fill(0);
@@ -37,6 +47,14 @@ export const calculateLayerGrids = (weights, initialGrids) => {
           grid[i] += prevLayerGrid[i] * weight;
         }
       });
+
+      // Normalize the grid
+      const maxGridValue = Math.max(...grid.map(Math.abs));
+      if (maxGridValue > 0) {
+        for (let i = 0; i < grid.length; i++) {
+          grid[i] /= maxGridValue;
+        }
+      }
 
       currentLayerGrids.push(grid);
     });

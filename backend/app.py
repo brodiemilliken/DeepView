@@ -61,6 +61,8 @@ def training_loop(config):
         # Training loop: train on the MNIST dataset.
         while not stop_training:
             batch_number = 0
+            epoch_loss = 0
+            num_batches = 0
             for inputs, labels in train_loader:
                 if stop_training:
                     break
@@ -72,8 +74,14 @@ def training_loop(config):
                 optimizer.step()
                 
                 training_error = loss.item()
-                socketio.emit('training_update', {'error': round(training_error, 4), 'epoch': epoch, 'batch': batch_number})
+                epoch_loss += training_error
+                num_batches += 1
+                socketio.emit('training_update', {'batch': batch_number})
                 batch_number += 1
+            
+            # Calculate average training error for the epoch
+            avg_epoch_loss = epoch_loss / num_batches if num_batches > 0 else 0
+            socketio.emit('training_update', {'epoch': epoch, 'avg_error': round(avg_epoch_loss, 4)})
             
             # Send weights at the end of each epoch
             weights = get_model_weights(model)
@@ -82,8 +90,11 @@ def training_loop(config):
 
             # Check if training should be paused
             if pause_training:
+                socketio.emit('training_update', {'message': 'Waiting for epoch to finish...'})
                 while pause_training and not stop_training:
                     time.sleep(1)
+                if not stop_training:
+                    socketio.emit('training_update', {'message': 'Training paused.'})
 
         socketio.emit('training_update', {'message': 'Training stopped.'})
         stop_training = False
@@ -125,13 +136,15 @@ def pause():
     global pause_training
     # Set the flag to signal the training loop to pause
     pause_training = True
-    return jsonify({"message": "Pause signal received."})
+    socketio.emit('training_update', {'message': 'Waiting for epoch to finish...'})
+    return jsonify({"message": "Pause signal received. Waiting for epoch to finish..."})
 
 @app.route('/resume', methods=['POST'])
 def resume():
     global pause_training
     # Clear the flag to signal the training loop to resume
     pause_training = False
+    socketio.emit('training_update', {'message': 'Training resumed.'})
     return jsonify({"message": "Resume signal received."})
 
 if __name__ == '__main__':
