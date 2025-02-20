@@ -19,6 +19,7 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 # Global variables to manage the training thread and stop flag
 training_thread = None
 stop_training = False
+pause_training = False
 model = None
 
 # Load the MNIST dataset
@@ -40,7 +41,7 @@ def get_weights():
     return jsonify(weights)
 
 def training_loop(config):
-    global stop_training, model
+    global stop_training, pause_training, model
     try:
         # Get the layer configuration from the incoming data.
         layer_sizes = config.get('layers', [128, 64])
@@ -79,15 +80,22 @@ def training_loop(config):
             socketio.emit('training_update', {'epoch': epoch, 'weights': weights})
             epoch += 1
 
+            # Check if training should be paused
+            if pause_training:
+                while pause_training and not stop_training:
+                    time.sleep(1)
+
         socketio.emit('training_update', {'message': 'Training stopped.'})
         stop_training = False
+        pause_training = False
     except Exception as e:
         socketio.emit('training_update', {'message': f'Error: {str(e)}'})
         stop_training = False
+        pause_training = False
 
 @app.route('/train', methods=['POST'])
 def start_training():
-    global training_thread, stop_training, model
+    global training_thread, stop_training, pause_training, model
     data = request.get_json()
     print("Received training configuration:", data)
     
@@ -95,8 +103,9 @@ def start_training():
     if training_thread is not None and training_thread.is_alive():
         return jsonify({"message": "Training is already running."}), 400
 
-    # Reset the stop flag and start a new training thread with the provided config
+    # Reset the stop and pause flags and start a new training thread with the provided config
     stop_training = False
+    pause_training = False
     training_thread = threading.Thread(target=training_loop, args=(data,))
     training_thread.start()
 
@@ -110,6 +119,20 @@ def stop():
     # Set the flag to signal the training loop to stop
     stop_training = True
     return jsonify({"message": "Stop signal received."})
+
+@app.route('/pause', methods=['POST'])
+def pause():
+    global pause_training
+    # Set the flag to signal the training loop to pause
+    pause_training = True
+    return jsonify({"message": "Pause signal received."})
+
+@app.route('/resume', methods=['POST'])
+def resume():
+    global pause_training
+    # Clear the flag to signal the training loop to resume
+    pause_training = False
+    return jsonify({"message": "Resume signal received."})
 
 if __name__ == '__main__':
     # Use allow_unsafe_werkzeug=True for development purposes

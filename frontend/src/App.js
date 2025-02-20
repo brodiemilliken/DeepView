@@ -12,6 +12,9 @@ function App() {
   const [batch, setBatch] = useState(0);
   const [isTraining, setIsTraining] = useState(false);
   const [weights, setWeights] = useState([]);
+  const [layerGrids, setLayerGrids] = useState([]);
+  const [drawWeights, setDrawWeights] = useState(true); // New state for drawing weights
+  const [isPaused, setIsPaused] = useState(false); // New state for pausing
 
   useEffect(() => {
     const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
@@ -41,10 +44,11 @@ function App() {
   useEffect(() => {
     if (weights.length > 0) {
       console.log('Drawing network with fetched weights...'); // Log before drawing the network
-      drawNetwork(weights);
-      enableNeuronHover(); // Enable neuron hover functionality
+      const layerGrids = drawNetwork(weights, drawWeights); // Pass drawWeights to drawNetwork
+      setLayerGrids(layerGrids);
+      enableNeuronHover(weights, layerGrids); // Pass weights and layerGrids to enableNeuronHover
     }
-  }, [weights]);
+  }, [weights, drawWeights]); // Add drawWeights to the dependency array
 
   const startTraining = async (e) => {
     e.preventDefault();
@@ -54,6 +58,13 @@ function App() {
       const res = await axios.post(`${backendUrl}/train`, { layers });
       setResponse(res.data.message);
       setIsTraining(true);
+      setIsPaused(false);
+      // Clear previous visualization and weights
+      setWeights([]);
+      setLayerGrids([]);
+      setEpoch(0);
+      setBatch(0);
+      setError(null);
     } catch (err) {
       console.error(err);
       setResponse('Error communicating with backend.');
@@ -66,13 +77,39 @@ function App() {
       const res = await axios.post(`${backendUrl}/stop`);
       setResponse(res.data.message);
       setIsTraining(false);
+      setIsPaused(false); // Ensure paused state is reset
     } catch (err) {
       console.error(err);
       setResponse('Error sending stop signal.');
     }
   };
 
+  const pauseTraining = async () => {
+    try {
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+      const res = await axios.post(`${backendUrl}/pause`);
+      setResponse(res.data.message);
+      setIsPaused(true);
+    } catch (err) {
+      console.error(err);
+      setResponse('Error sending pause signal.');
+    }
+  };
+
+  const resumeTraining = async () => {
+    try {
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+      const res = await axios.post(`${backendUrl}/resume`);
+      setResponse(res.data.message);
+      setIsPaused(false);
+    } catch (err) {
+      console.error(err);
+      setResponse('Error sending resume signal.');
+    }
+  };
+
   const handleButtonClick = (e) => {
+    e.preventDefault(); 
     if (isTraining) {
       stopTraining();
     } else {
@@ -97,9 +134,30 @@ function App() {
           </label>
         </div>
         <div style={{ marginTop: '20px' }}>
+          <label>
+            Draw Weights:
+            <input
+              type="checkbox"
+              checked={drawWeights}
+              onChange={(e) => setDrawWeights(e.target.checked)}
+              style={{ marginLeft: '10px' }}
+            />
+          </label>
+        </div>
+        <div style={{ marginTop: '20px' }}>
           <button type="submit">
             {isTraining ? "Stop Training" : "Train"}
           </button>
+          {isTraining && !isPaused && (
+            <button type="button" onClick={pauseTraining} style={{ marginLeft: '10px' }}>
+              Pause Training
+            </button>
+          )}
+          {isPaused && (
+            <button type="button" onClick={resumeTraining} style={{ marginLeft: '10px' }}>
+              Resume Training
+            </button>
+          )}
         </div>
       </form>
       {response && (
@@ -123,6 +181,7 @@ function App() {
         </div>
       )}
       <svg id="network"></svg>
+      <div id="neuron-info" style={{ display: 'none', marginTop: '20px', fontWeight: 'bold' }}></div>
       <div id="fixed-neuron-info" style={{ display: 'none', position: 'fixed', top: '10px', right: '10px', backgroundColor: 'white', padding: '10px', border: '1px solid black', fontWeight: 'bold' }}></div>
     </div>
   );

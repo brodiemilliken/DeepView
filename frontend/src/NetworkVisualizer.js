@@ -1,6 +1,7 @@
 import * as d3 from 'd3';
+import { calculateInitialGrids, calculateLayerGrids } from './GridCalculator';
 
-export const drawNetwork = (weights) => {
+export const drawNetwork = (weights, drawWeights) => {
   console.log('Drawing network with weights:', weights); // Log the weights data
 
   const layerSpacing = 150;
@@ -40,54 +41,52 @@ export const drawNetwork = (weights) => {
     }
   }
 
-  // Draw the lines first
-  weights.forEach((layer, layerIndex) => {
-    const layerHeight = layer.length * neuronSpacing;
-    const layerOffsetY = (svgHeight - layerHeight) / 2;
+  // Draw the lines first if drawWeights is true
+  if (drawWeights) {
+    weights.forEach((layer, layerIndex) => {
+      const layerHeight = layer.length * neuronSpacing;
+      const layerOffsetY = (svgHeight - layerHeight) / 2;
 
-    layer.forEach((neuronWeights, neuronIndex) => {
-      const x = (layerIndex + 1) * layerSpacing + gridOffsetX + gridSize * gridSpacing;
-      const y = neuronIndex * neuronSpacing + layerOffsetY;
+      layer.forEach((neuronWeights, neuronIndex) => {
+        const x = (layerIndex + 1) * layerSpacing + gridOffsetX + gridSize * gridSpacing;
+        const y = neuronIndex * neuronSpacing + layerOffsetY;
 
-      if (layerIndex === 0) {
-        // Connect input layer to the first hidden layer
-        neuronWeights.forEach((weight, inputIndex) => {
-          const inputX = (inputIndex % gridSize) * gridSpacing + gridOffsetX + gridSpacing / 2;
-          const inputY = Math.floor(inputIndex / gridSize) * gridSpacing + gridOffsetY + gridSpacing / 2;
-          const alpha = Math.min(1, Math.abs(weight) * 2); // Alpha transparency based on weight
-          const color = weight > 0 ? `rgba(0, 0, 255, ${alpha})` : `rgba(255, 0, 0, ${alpha})`; // Apply alpha transparency
-          const width = Math.abs(weight) * 2; // Thinner lines
+        if (layerIndex === 0) {
+          // Connect input layer to the first hidden layer
+          neuronWeights.forEach((weight, inputIndex) => {
+            const inputX = (inputIndex % gridSize) * gridSpacing + gridOffsetX + gridSpacing / 2;
+            const inputY = Math.floor(inputIndex / gridSize) * gridSpacing + gridOffsetY + gridSpacing / 2;
+            const color = getColorForWeight(weight);
 
-          svg.append('line')
-            .attr('x1', inputX)
-            .attr('y1', inputY)
-            .attr('x2', x)
-            .attr('y2', y)
-            .attr('stroke', color)
-            .attr('stroke-width', width);
-        });
-      } else {
-        // Connect hidden layers and the output layer
-        neuronWeights.forEach((weight, prevNeuronIndex) => {
-          const prevLayerHeight = weights[layerIndex - 1].length * neuronSpacing;
-          const prevLayerOffsetY = (svgHeight - prevLayerHeight) / 2;
-          const prevX = layerIndex * layerSpacing + gridOffsetX + gridSize * gridSpacing;
-          const prevY = prevNeuronIndex * neuronSpacing + prevLayerOffsetY;
-          const alpha = Math.min(1, Math.abs(weight) * 2); // Alpha transparency based on weight
-          const color = weight > 0 ? `rgba(0, 0, 255, ${alpha})` : `rgba(255, 0, 0, ${alpha})`; // Apply alpha transparency
-          const width = Math.abs(weight) * 2; // Thinner lines
+            svg.append('line')
+              .attr('x1', inputX)
+              .attr('y1', inputY)
+              .attr('x2', x)
+              .attr('y2', y)
+              .attr('stroke', color)
+              .attr('stroke-width', Math.abs(weight) * 2); // Thinner lines
+          });
+        } else {
+          // Connect hidden layers and the output layer
+          neuronWeights.forEach((weight, prevNeuronIndex) => {
+            const prevLayerHeight = weights[layerIndex - 1].length * neuronSpacing;
+            const prevLayerOffsetY = (svgHeight - prevLayerHeight) / 2;
+            const prevX = layerIndex * layerSpacing + gridOffsetX + gridSize * gridSpacing;
+            const prevY = prevNeuronIndex * neuronSpacing + prevLayerOffsetY;
+            const color = getColorForWeight(weight);
 
-          svg.append('line')
-            .attr('x1', prevX)
-            .attr('y1', prevY)
-            .attr('x2', x)
-            .attr('y2', y)
-            .attr('stroke', color)
-            .attr('stroke-width', width);
-        });
-      }
+            svg.append('line')
+              .attr('x1', prevX)
+              .attr('y1', prevY)
+              .attr('x2', x)
+              .attr('y2', y)
+              .attr('stroke', color)
+              .attr('stroke-width', Math.abs(weight) * 2); // Thinner lines
+          });
+        }
+      });
     });
-  });
+  }
 
   // Draw the circles (neurons) on top of the lines
   weights.forEach((layer, layerIndex) => {
@@ -107,4 +106,14 @@ export const drawNetwork = (weights) => {
         .attr('data-neuron', neuronIndex);
     });
   });
+
+  // Store initial grids for each neuron in the first layer
+  const initialGrids = calculateInitialGrids(weights);
+  const layerGrids = calculateLayerGrids(weights, initialGrids);
+  return layerGrids;
+};
+
+export const getColorForWeight = (weight) => {
+  const alpha = Math.min(1, Math.abs(weight) * 4); // Alpha transparency based on weight
+  return weight > 0 ? `rgba(0, 0, 255, ${alpha})` : `rgba(255, 0, 0, ${alpha})`; // Apply alpha transparency
 };
