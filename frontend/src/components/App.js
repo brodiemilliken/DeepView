@@ -32,7 +32,8 @@ function App() {
         setBatch(data.batch);
       }
       if (data.weights !== undefined) {
-        setWeights(data.weights);
+        // Force a new array reference
+        setWeights([...data.weights]);
       }
       if (data.avg_error !== undefined) {
         setAvgError(data.avg_error);
@@ -77,7 +78,16 @@ function App() {
         setLayerGrids={setLayerGrids}
       />
       <div id="neuron-info" style={{ display: 'none', marginTop: '20px', fontWeight: 'bold' }}></div>
-      <div id="fixed-neuron-info" style={{ display: 'none', position: 'fixed', top: '10px', right: '10px', backgroundColor: 'white', padding: '10px', border: '1px solid black', fontWeight: 'bold' }}></div>
+      {/* Container for the fixed neuron grid */}
+      <div id="fixed-neuron-info" style={{
+        position: 'fixed',
+        top: '10px', 
+        right: '10px',
+        backgroundColor: 'white',
+        padding: '10px',
+        border: '1px solid black',
+        fontWeight: 'bold'
+      }}></div>
     </div>
   );
 }

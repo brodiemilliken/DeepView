@@ -10,15 +10,19 @@ import { getColorForWeight } from '../utils/colorUtils';
  * @param {number} gridOffsetY - The Y offset for the grid.
  * @returns {SVGElement} - The SVG element containing the grid visualization.
  */
-export const drawGrid = (grid, gridSize = 28, gridSpacing = 5, gridOffsetX = 10, gridOffsetY = 50) => {
+export const drawGrid = (grid, gridSize = 28, gridSpacing = 5) => {
   const colorGrid = grid.map(getColorForWeight);
 
+  // Create an SVG that is fixed in the upper right corner
   const svg = d3.create('svg')
     .attr('width', gridSize * gridSpacing)
     .attr('height', gridSize * gridSpacing)
-    .style('position', 'absolute')
-    .style('top', `${gridOffsetY}px`)
-    .style('left', `${gridOffsetX}px`);
+    .style('position', 'fixed')
+    .style('top', '10px')
+    .style('right', '10px')
+    .style('background', 'white')
+    .style('border', '1px solid black')
+    .style('padding', '5px');
 
   for (let i = 0; i < gridSize; i++) {
     for (let j = 0; j < gridSize; j++) {

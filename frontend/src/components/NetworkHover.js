@@ -2,24 +2,37 @@ import * as d3 from 'd3';
 import { drawGrid } from './GridVisualizer';
 
 /**
- * Enable hover functionality for neurons in the network visualization.
+ * Enable hover/click functionality for neurons in the network visualization.
+ * When a neuron (circle) is clicked, its corresponding grid is drawn in 
+ * the fixed container at the top right.
+ *
  * @param {Array} weights - The weights of the neural network.
- * @param {Array} layerGrids - The grids for each layer.
+ * @param {Array} layerGrids - The pre-computed grids for each layer.
  */
 export const enableNeuronHover = (weights, layerGrids) => {
-  const svg = d3.select('#network');
-
-  svg.selectAll('circle')
-    .on('mouseover', function (event) {
+  // Select all neurons (circles) in the network SVG
+  d3.selectAll('#network circle')
+    .on('click', function () {
       const circle = d3.select(this);
-      const layer = parseInt(circle.attr('data-layer'), 10);
-      const neuron = parseInt(circle.attr('data-neuron'), 10);
-      displayNeuronInfo(layer, neuron);
-      drawNeuronGrid(layer, neuron, layerGrids);
-    })
-    .on('mouseout', function () {
-      hideNeuronInfo();
-      hideNeuronGrid();
+      const layer = circle.attr('data-layer');
+      const neuron = circle.attr('data-neuron');
+      console.log(`Neuron clicked - Layer: ${layer}, Neuron: ${neuron}`);
+
+      // Retrieve the corresponding grid.
+      // Assuming layerGrids is an array (one per layer) of arrays (one per neuron)
+      if (layerGrids && layerGrids[layer] && layerGrids[layer][neuron]) {
+        const grid = layerGrids[layer][neuron];
+
+        // Clear any existing grid in the fixed container
+        d3.select('#fixed-neuron-info').selectAll('*').remove();
+
+        // Draw the grid using the drawGrid function
+        const gridSvg = drawGrid(grid);
+        // Append the SVG element (returned from drawGrid) to the container
+        d3.select('#fixed-neuron-info').node().appendChild(gridSvg);
+      } else {
+        console.warn(`No grid available for layer ${layer}, neuron ${neuron}`);
+      }
     });
 };
 
@@ -42,8 +55,9 @@ const displayNeuronInfo = (layer, neuron) => {
  */
 const drawNeuronGrid = (layer, neuron, layerGrids) => {
   const grid = layerGrids[layer][neuron];
+  // Clear any existing grid from the fixed container
+  d3.select('#fixed-neuron-info').selectAll('*').remove();
   const gridSvg = drawGrid(grid);
-
   d3.select('#fixed-neuron-info').node().appendChild(gridSvg);
 };
 

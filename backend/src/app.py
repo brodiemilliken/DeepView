@@ -11,7 +11,7 @@ from torchvision import datasets, transforms
 
 # Import our dynamic neural network model
 from src.models.nn_model import DynamicNet
-from src.utils.GridCalculator import calculate_initial_grids, calculate_layer_grids, calculate_grids
+from src.utils.GridCalculator import calculate_initial_grids, calculate_layer_grids
 from src.routes.trainingRoutes import training_bp
 from src.socketio_instance import socketio  # Import the socketio instance
 
@@ -50,65 +50,78 @@ def get_weights():
 def training_loop(config):
     global stop_training, pause_training, model
     try:
-        # Get the layer configuration from the incoming data.
         layer_sizes = config.get('layers', [128, 64])
+        print("[DEBUG] Training configuration received:", config)
+        print("[DEBUG] Creating model with layers:", layer_sizes)
         
-        # Create an instance of the dynamic network.
         model = DynamicNet(layer_sizes, input_dim=784, output_dim=10)
         
-        # Send initial weights and grids
         initial_weights = get_model_weights(model)
-        initial_grids, layer_grids = calculate_grids(initial_weights)
+        initial_grids = calculate_initial_grids(initial_weights)
+        layer_grids = calculate_layer_grids(initial_weights)
+        print("[DEBUG] Initial weights and grids computed.")
         socketio.emit('training_update', {'epoch': 0, 'weights': initial_weights, 'initial_grids': initial_grids, 'layer_grids': layer_grids})
         
-        # Set up the optimizer and loss function.
         optimizer = optim.Adam(model.parameters(), lr=0.001)
         criterion = nn.CrossEntropyLoss()
         
         epoch = 0
-        # Training loop: train on the MNIST dataset.
         while not stop_training:
             batch_number = 0
             epoch_loss = 0
             num_batches = 0
+
             for inputs, labels in train_loader:
                 if stop_training:
+                    print(f"[DEBUG] Stop flag detected at epoch {epoch}, batch {batch_number}. Exiting batch loop.")
                     break
-                
+
+                # Training step
                 optimizer.zero_grad()
                 outputs = model(inputs)
                 loss = criterion(outputs, labels)
                 loss.backward()
                 optimizer.step()
-                
+
                 training_error = loss.item()
                 epoch_loss += training_error
                 num_batches += 1
                 socketio.emit('training_update', {'batch': batch_number})
                 batch_number += 1
-            
-            # Calculate average training error for the epoch
+
+            if stop_training:
+                print(f"[DEBUG] Stop flag detected after epoch {epoch} batch loop. Exiting training loop.")
+                break
+
             avg_epoch_loss = epoch_loss / num_batches if num_batches > 0 else 0
+            print(f"[DEBUG] Completed epoch {epoch} with average error {avg_epoch_loss}.")
             socketio.emit('training_update', {'epoch': epoch, 'avg_error': round(avg_epoch_loss, 4)})
             
-            # Send weights and grids at the end of each epoch
             weights = get_model_weights(model)
-            initial_grids, layer_grids = calculate_grids(weights)
+            initial_grids = calculate_initial_grids(weights)
+            layer_grids = calculate_layer_grids(weights)
+            print(f"[DEBUG] Emitting updated weights and grids for epoch {epoch}.")
             socketio.emit('training_update', {'epoch': epoch, 'weights': weights, 'initial_grids': initial_grids, 'layer_grids': layer_grids})
+            
             epoch += 1
 
-            # Check if training should be paused
             if pause_training:
+                print(f"[DEBUG] Pause flag detected at epoch {epoch}. Pausing training.")
                 socketio.emit('training_update', {'message': 'Waiting for epoch to finish...'})
                 while pause_training and not stop_training:
+                    print(f"[DEBUG] Training paused at epoch {epoch}. Waiting to resume...")
                     time.sleep(1)
                 if not stop_training:
-                    socketio.emit('training_update', {'message': 'Training paused.'})
+                    print(f"[DEBUG] Pause flag cleared. Resuming epoch {epoch}.")
+                    socketio.emit('training_update', {'message': 'Training resumed.'})
 
+        print("[DEBUG] Training loop ended due to stop flag or finished training.")
         socketio.emit('training_update', {'message': 'Training stopped.'})
         stop_training = False
         pause_training = False
+
     except Exception as e:
+        print(f"[ERROR] Exception in training loop: {str(e)}")
         socketio.emit('training_update', {'message': f'Error: {str(e)}'})
         stop_training = False
         pause_training = False
